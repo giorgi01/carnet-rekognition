@@ -1,10 +1,9 @@
-from requests import Response
 import time
 
 
 class LambdaHelper:
     @staticmethod
-    def handle_response(r: Response):
+    def handle_response(r):
         match r.status_code:
             case 200:
                 data = r.json()

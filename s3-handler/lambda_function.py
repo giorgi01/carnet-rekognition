@@ -1,6 +1,6 @@
 import io
 import boto3
-import requests
+from botocore.vendored import requests
 
 from lambda_helper import LambdaHelper
 from dynamo_client import DynamoClient
