@@ -1,16 +1,26 @@
 import io
 import boto3
-from botocore.vendored import requests
+import json
 
 from lambda_helper import LambdaHelper
 from dynamo_client import DynamoClient
 
 
-def analyze_image(image_url):
-    response = requests.post(
-        'https://carnet.ai/recognize-image_url',
-        data=image_url
+def analyze_image(img_url):
+    client = boto3.client('lambda')
+    payload = {
+        "httpMethod": "POST",
+        "body": img_url,
+        "url": 'https://carnet.ai/recognize-image_url'
+    }
+    payload = json.dumps(payload).encode('utf-8')
+
+    response = client.invoke(
+        FunctionName='carnet-handler',
+        InvocationType='RequestResponse',
+        Payload=payload
     )
+
     return LambdaHelper.handle_response(response)
 
 
