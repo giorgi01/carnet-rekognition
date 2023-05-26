@@ -1,25 +1,21 @@
 import io
+import os
+
 import boto3
 import json
+import urllib3
+import urllib3.request
 
 from lambda_helper import LambdaHelper
 from dynamo_client import DynamoClient
 
 
-def analyze_image(img_url):
-    client = boto3.client('lambda')
-    payload = {
-        "httpMethod": "POST",
-        "body": img_url,
-        "url": 'https://carnet.ai/recognize-image_url'
-    }
-    payload = json.dumps(payload).encode('utf-8')
+def analyze_image(image_url):
+    http = urllib3.PoolManager()
+    data = {'imageFile': image_url}  # Use 'img_url' as the key for the image URL
 
-    response = client.invoke(
-        FunctionName='carnet-handler',
-        InvocationType='RequestResponse',
-        Payload=payload
-    )
+    url = 'https://carnet.ai/recognize-url'
+    response = http.request('POST', url, fields=data)
 
     return LambdaHelper.handle_response(response)
 
@@ -27,19 +23,20 @@ def analyze_image(img_url):
 def lambda_handler(event, _):
     s3_client = boto3.client("s3")
 
-    for record in event.get("Records"):
-        bucket = record.get("s3").get("bucket").get("name")
-        key = record.get("s3").get("object").get("key")
-        location = boto3.client('s3').get_bucket_location(Bucket=bucket)['LocationConstraint']
+    recs = event['Records']
+    for record in recs:
+        bucket = record["s3"]["bucket"]["name"]
+        key = record["s3"]["object"]["key"]
+
+        location = s3_client.get_bucket_location(Bucket=bucket)['LocationConstraint']
         url = f'https://{bucket}.s3.{location}.amazonaws.com/{key}'
 
-        file = io.BytesIO()
-        s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=file)
-        file.seek(0)
-
         result = analyze_image(url)
-        print("result", result)  # debug purpouses
 
-        DynamoClient.save(result)
+        if result is not None:
+            DynamoClient.save(result, os.getenv('CARNET_DB'))
+        else:
+            result = LambdaHelper.generate_image_labels(bucket, key)
+            DynamoClient.save(result, os.getenv('REKOGNITION_DB'))
 
     return {"statusCode": 200, "body": "OK"}

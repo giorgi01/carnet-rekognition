@@ -9,7 +9,7 @@ from botocore.exceptions import ClientError
 
 class DynamoClient:
     @staticmethod
-    def save(data):
+    def save(data, db_name):
         dynamodb = boto3.client('dynamodb')
         timestamp = datetime.utcnow().isoformat()
         data_ready_to_be_saved = {
@@ -28,7 +28,6 @@ class DynamoClient:
         }
 
         try:
-            db_name = os.getenv('DYNAMO_DB')
             dynamodb.put_item(TableName=db_name, Item=data_ready_to_be_saved)
         except ClientError as e:
             print(e.response['Error']['Message'])
